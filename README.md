@@ -1,3 +1,3 @@
 # conteo
-# script para supabase 
+script para supabase 
 systemv
