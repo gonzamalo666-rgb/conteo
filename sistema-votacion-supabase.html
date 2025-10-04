@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Votación - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .config-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .config-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .config-box h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .config-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .config-box button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 6px;
+        }
+        
+        .header-buttons button {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .header-buttons button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #e0e0e0;
+            color: #000;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .list {
+            margin-top: 30px;
+        }
+        
+        .list-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+        }
+        
+        .list-item:hover {
+            background: #f0f0f0;
+        }
+        
+        .delete-btn {
+            background: #e74c3c;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .votos-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .partido-voto {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .partido-voto label {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .partido-voto input {
+            width: 150px;
+        }
+        
+        .resultado-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+        
+        .resultado-item h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .partido-resultado {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #f9f9f9;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .error {
+            background: #ffe6e6;
+            color: #c0392b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #c0392b;
+        }
+        
+        .success {
+            background: #e6ffe6;
+            color: #27ae60;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div id="configOverlay" class="config-overlay">
+        <div class="config-box">
+            <h2>🔧 Configuración de Supabase</h2>
+            <p style="margin-bottom: 15px; color: #666;">Ingresa tus credenciales de Supabase para conectar la aplicación.</p>
+            <input type="text" id="supabaseUrl" placeholder="URL de Supabase (https://xxx.supabase.co)">
+            <input type="text" id="supabaseKey" placeholder="Anon Key de Supabase">
+            <button id="btnGuardarConfig">💾 Guardar y Conectar</button>
+            <p style="margin-top: 15px; font-size: 12px; color: #999;">
+                ℹ️ Encuentra estas credenciales en: Settings > API en tu proyecto de Supabase
+            </p>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="header-buttons">
+                <button id="btnMostrarConfig">⚙️ Configurar</button>
+                <button id="btnExportar">📥 Exportar</button>
+                <button id="btnSincronizar">🔄 Sincronizar</button>
+            </div>
+            <h1>🗳️ Sistema de Votación</h1>
+            <p>Gestión Electoral con Supabase</p>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="zonas">Zonas</button>
+            <button class="tab" data-tab="mesas">Mesas</button>
+            <button class="tab" data-tab="partidos">Partidos</button>
+            <button class="tab" data-tab="votar">Registrar Votos</button>
+            <button class="tab" data-tab="resultados">Resultados</button>
+        </div>
+        
+        <div id="zonas" class="tab-content active">
+            <h2>Gestión de Zonas</h2>
+            <div id="zonasMessages"></div>
+            <div class="form-group">
+                <label for="nombreZona">Nombre de la Zona:</label>
+                <input type="text" id="nombreZona" placeholder="Ej: Zona Norte">
+            </div>
+            <button id="btnAgregarZona">➕ Agregar Zona</button>
+            
+            <div class="list" id="listaZonas">
+                <div class="loading">Cargando zonas...</div>
+            </div>
+        </div>
+        
+        <div id="mesas" class="tab-content">
+            <h2>Gestión de Mesas</h2>
+            <div id="mesasMessages"></div>
+            <div class="form-group">
+                <label for="numeroMesa">Número de Mesa:</label>
+                <input type="text" id="numeroMesa" placeholder="Ej: 1001">
+            </div>
+            <div class="form-group">
+                <label for="zonaMesa">Zona:</label>
+                <select id="zonaMesa"></select>
+            </div>
+            <button id="btnAgregarMesa">➕ Agregar Mesa</button>
+            
+            <div class="list" id="listaMesas">
+                <div class="loading">Cargando mesas...</div>
+            </div>
+        </div>
+        
+        <div id="partidos" class="tab-content">
+            <h2>Gestión de Partidos</h2>
+            <div id="partidosMessages"></div>
+            <div class="form-group">
+                <label for="nombrePartido">Nombre del Partido:</label>
+                <input type="text" id="nombrePartido" placeholder="Ej: Partido Popular">
+            </div>
+            <div class="form-group">
+                <label for="colorPartido">Color:</label>
+                <input type="color" id="colorPartido" value="#667eea">
+            </div>
+            <button id="btnAgregarPartido">➕ Agregar Partido</button>
+            
+            <div class="list" id="listaPartidos">
+                <div class="loading">Cargando partidos...</div>
+            </div>
+        </div>
+        
+        <div id="votar" class="tab-content">
+            <h2>Registrar Votos</h2>
+            <div id="votarMessages"></div>
+            <div class="form-group">
+                <label for="mesaVoto">Seleccionar Mesa:</label>
+                <select id="mesaVoto"></select>
+            </div>
+            
+            <div class="votos-section" id="seccionVotos"></div>
+            
+            <button id="btnRegistrarVotos">✅ Registrar Votos</button>
+        </div>
+        
+        <div id="resultados" class="tab-content">
+            <h2>Resultados de Votación</h2>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalVotos">0</div>
+                    <div class="stat-label">Total Votos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalMesas">0</div>
+                    <div class="stat-label">Mesas Escrutadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalPartidos">0</div>
+                    <div class="stat-label">Partidos</div>
+                </div>
+            </div>
+            
+            <h3>Resultados por Zona</h3>
+            <div id="resultadosDetalle">
+                <div class="loading">Cargando resultados...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let supabaseClient = null;
+        let zonas = [];
+        let mesas = [];
+        let partidos = [];
+        let votos = [];
+
+        function inicializarSupabase(url, key) {
+            console.log('Inicializando Supabase...');
+            console.log('URL:', url);
+            
+            if (typeof window.supabase === 'undefined') {
+                throw new Error('La librería de Supabase no se cargó correctamente');
+            }
+            
+            supabaseClient = window.supabase.createClient(url, key);
+            console.log('Cliente creado:', supabaseClient ? 'OK' : 'ERROR');
+            return supabaseClient;
+        }
+
+        function getSupabase() {
+            if (!supabaseClient) {
+                const config = JSON.parse(localStorage.getItem('supabaseConfig') || '{}');
+                if (config.url && config.key) {
+                    return inicializarSupabase(config.url, config.key);
+                }
+                throw new Error('Supabase no está configurado');
+            }
+            return supabaseClient;
+        }
+
+        function verificarConfiguracion() {
+            const config = JSON.parse(localStorage.getItem('supabaseConfig') || '{}');
+            if (config.url && config.key) {
+                inicializarSupabase(config.url, config.key);
+                document.getElementById('configOverlay').classList.add('hidden');
+                cargarTodosDatos();
+                return true;
+            }
+            return false;
+        }
+
+        function guardarConfiguracion() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+            
+            if (!url || !key) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            try {
+                localStorage.setItem('supabaseConfig', JSON.stringify({ url, key }));
+                inicializarSupabase(url, key);
+                document.getElementById('configOverlay').classList.add('hidden');
+                cargarTodosDatos();
+            } catch (error) {
+                console.error('Error completo:', error);
+                alert('Error al guardar configuración: ' + JSON.stringify(error));
+            }
+        }
+
+        function mostrarConfiguracion() {
+            const config = JSON.parse(localStorage.getItem('supabaseConfig') || '{}');
+            document.getElementById('supabaseUrl').value = config.url || '';
+            document.getElementById('supabaseKey').value = config.key || '';
+            document.getElementById('configOverlay').classList.remove('hidden');
+        }
+
+        function mostrarMensaje(containerId, mensaje, tipo = 'success') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = tipo;
+            div.textContent = mensaje;
+            container.innerHTML = '';
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        async function cargarTodosDatos() {
+            await Promise.all([
+                cargarZonas(),
+                cargarMesas(),
+                cargarPartidos(),
+                cargarVotos()
+            ]);
+        }
+
+        async function cargarZonas() {
+            try {
+                const sb = getSupabase();
+                const { data, error } = await sb
+                    .from('zonas')
+                    .select('*')
+                    .order('nombre');
+                
+                if (error) {
+                    console.error('Error detallado:', error);
+                    throw new Error(error.message || JSON.stringify(error));
+                }
+                zonas = data || [];
+                actualizarListaZonas();
+                actualizarSelectZonas();
+            } catch (error) {
+                console.error('Error completo al cargar zonas:', error);
+                document.getElementById('listaZonas').innerHTML = 
+                    '<div class="error">Error al cargar zonas: ' + error.message + '</div>';
+            }
+        }
+
+        async function agregarZona() {
+            const nombre = document.getElementById('nombreZona').value.trim();
+            if (!nombre) {
+                mostrarMensaje('zonasMessages', 'Por favor ingrese un nombre', 'error');
+                return;
+            }
+            
+            try {
+                const sb = getSupabase();
+                const { data, error } = await sb
+                    .from('zonas')
+                    .insert([{ nombre }])
+                    .select();
+                
+                if (error) {
+                    console.error('Error detallado:', error);
+                    throw new Error(error.message || JSON.stringify(error));
+                }
+                
+                document.getElementById('nombreZona').value = '';
+                mostrarMensaje('zonasMessages', 'Zona agregada exitosamente');
+                await cargarZonas();
+            } catch (error) {
+                console.error('Error completo:', error);
+                mostrarMensaje('zonasMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function eliminarZona(id) {
+            if (!confirm('¿Está seguro de eliminar esta zona?')) return;
+            
+            try {
+                const sb = getSupabase();
+                const { error } = await sb
+                    .from('zonas')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                mostrarMensaje('zonasMessages', 'Zona eliminada');
+                await cargarZonas();
+                await cargarMesas();
+            } catch (error) {
+                mostrarMensaje('zonasMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        function actualizarListaZonas() {
+            const lista = document.getElementById('listaZonas');
+            lista.innerHTML = '';
+            
+            if (zonas.length === 0) {
+                lista.innerHTML = '<p style="text-align:center; color:#999;">No hay zonas registradas</p>';
+                return;
+            }
+            
+            zonas.forEach(zona => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <span><strong>${zona.nombre}</strong></span>
+                    <button class="delete-btn" onclick="eliminarZona(${zona.id})">🗑️ Eliminar</button>
+                `;
+                lista.appendChild(div);
+            });
+        }
+
+        function actualizarSelectZonas() {
+            const select = document.getElementById('zonaMesa');
+            select.innerHTML = '<option value="">Seleccione una zona</option>';
+            
+            zonas.forEach(zona => {
+                const option = document.createElement('option');
+                option.value = zona.id;
+                option.textContent = zona.nombre;
+                select.appendChild(option);
+            });
+        }
+
+        async function cargarMesas() {
+            try {
+                const sb = getSupabase();
+                const { data, error } = await sb
+                    .from('mesas')
+                    .select('*, zonas(nombre)')
+                    .order('numero');
+                
+                if (error) throw error;
+                mesas = data || [];
+                actualizarListaMesas();
+                actualizarSelectMesas();
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaMesas').innerHTML = 
+                    '<div class="error">Error al cargar mesas: ' + error.message + '</div>';
+            }
+        }
+
+        async function agregarMesa() {
+            const numero = document.getElementById('numeroMesa').value.trim();
+            const zona_id = parseInt(document.getElementById('zonaMesa').value);
+            
+            if (!numero || !zona_id) {
+                mostrarMensaje('mesasMessages', 'Por favor complete todos los campos', 'error');
+                return;
+            }
+            
+            try {
+                const sb = getSupabase();
+                const { error } = await sb
+                    .from('mesas')
+                    .insert([{ numero, zona_id }]);
+                
+                if (error) throw error;
+                
+                document.getElementById('numeroMesa').value = '';
+                mostrarMensaje('mesasMessages', 'Mesa agregada exitosamente');
+                await cargarMesas();
+            } catch (error) {
+                mostrarMensaje('mesasMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function eliminarMesa(id) {
+            if (!confirm('¿Está seguro de eliminar esta mesa?')) return;
+            
+            try {
+                const sb = getSupabase();
+                const { error } = await sb
+                    .from('mesas')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                mostrarMensaje('mesasMessages', 'Mesa eliminada');
+                await cargarMesas();
+            } catch (error) {
+                mostrarMensaje('mesasMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        function actualizarListaMesas() {
+            const lista = document.getElementById('listaMesas');
+            lista.innerHTML = '';
+            
+            if (mesas.length === 0) {
+                lista.innerHTML = '<p style="text-align:center; color:#999;">No hay mesas registradas</p>';
+                return;
+            }
+            
+            mesas.forEach(mesa => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <span><strong>Mesa ${mesa.numero}</strong> - ${mesa.zonas?.nombre || 'Sin zona'}</span>
+                    <button class="delete-btn" onclick="eliminarMesa(${mesa.id})">🗑️ Eliminar</button>
+                `;
+                lista.appendChild(div);
+            });
+        }
+
+        function actualizarSelectMesas() {
+            const select = document.getElementById('mesaVoto');
+            select.innerHTML = '<option value="">Seleccione una mesa</option>';
+            
+            mesas.forEach(mesa => {
+                const option = document.createElement('option');
+                option.value = mesa.id;
+                option.textContent = `Mesa ${mesa.numero} - ${mesa.zonas?.nombre || 'Sin zona'}`;
+                select.appendChild(option);
+            });
+        }
+
+        async function cargarPartidos() {
+            try {
+                const sb = getSupabase();
+                const { data, error } = await sb
+                    .from('partidos')
+                    .select('*')
+                    .order('nombre');
+                
+                if (error) throw error;
+                partidos = data || [];
+                actualizarListaPartidos();
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaPartidos').innerHTML = 
+                    '<div class="error">Error al cargar partidos: ' + error.message + '</div>';
+            }
+        }
+
+        async function agregarPartido() {
+            const nombre = document.getElementById('nombrePartido').value.trim();
+            const color = document.getElementById('colorPartido').value;
+            
+            if (!nombre) {
+                mostrarMensaje('partidosMessages', 'Por favor ingrese un nombre', 'error');
+                return;
+            }
+            
+            try {
+                const sb = getSupabase();
+                const { error } = await sb
+                    .from('partidos')
+                    .insert([{ nombre, color }]);
+                
+                if (error) throw error;
+                
+                document.getElementById('nombrePartido').value = '';
+                mostrarMensaje('partidosMessages', 'Partido agregado exitosamente');
+                await cargarPartidos();
+            } catch (error) {
+                mostrarMensaje('partidosMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function eliminarPartido(id) {
+            if (!confirm('¿Está seguro de eliminar este partido?')) return;
+            
+            try {
+                const sb = getSupabase();
+                const { error } = await sb
+                    .from('partidos')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                mostrarMensaje('partidosMessages', 'Partido eliminado');
+                await cargarPartidos();
+            } catch (error) {
+                mostrarMensaje('partidosMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        function actualizarListaPartidos() {
+            const lista = document.getElementById('listaPartidos');
+            lista.innerHTML = '';
+            
+            if (partidos.length === 0) {
+                lista.innerHTML = '<p style="text-align:center; color:#999;">No hay partidos registrados</p>';
+                return;
+            }
+            
+            partidos.forEach(partido => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.style.borderLeftColor = partido.color;
+                div.innerHTML = `
+                    <span><strong>${partido.nombre}</strong> <span style="background: ${partido.color}; padding: 3px 10px; border-radius: 4px; color: white;">●</span></span>
+                    <button class="delete-btn" onclick="eliminarPartido(${partido.id})">🗑️ Eliminar</button>
+                `;
+                lista.appendChild(div);
+            });
+        }
+
+        async function cargarVotos() {
+            try {
+                const sb = getSupabase();
+                const { data, error } = await sb
+                    .from('votos')
+                    .select('*');
+                
+                if (error) throw error;
+                votos = data || [];
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function actualizarSeccionVotos() {
+            const mesaId = document.getElementById('mesaVoto').value;
+            const seccion = document.getElementById('seccionVotos');
+            
+            if (!mesaId) {
+                seccion.innerHTML = '<p>Seleccione una mesa para registrar votos</p>';
+                return;
+            }
+            
+            seccion.innerHTML = '<h3>Votos por Partido:</h3>';
+            
+            for (const partido of partidos) {
+                const votoExistente = votos.find(v => v.mesa_id == mesaId && v.partido_id == partido.id);
+                const cantidad = votoExistente ? votoExistente.cantidad : 0;
+                
+                const div = document.createElement('div');
+                div.className = 'partido-voto';
+                div.innerHTML = `
+                    <label style="color: ${partido.color};">● ${partido.nombre}:</label>
+                    <input type="number" id="voto_${partido.id}" value="${cantidad}" min="0" placeholder="Cantidad de votos">
+                `;
+                seccion.appendChild(div);
+            }
+        }
+
+        async function registrarVotos() {
+            const mesaId = parseInt(document.getElementById('mesaVoto').value);
+            
+            if (!mesaId) {
+                mostrarMensaje('votarMessages', 'Por favor seleccione una mesa', 'error');
+                return;
+            }
+            
+            try {
+                const sb = getSupabase();
+                for (const partido of partidos) {
+                    const cantidad = parseInt(document.getElementById(`voto_${partido.id}`).value) || 0;
+                    
+                    const votoExistente = votos.find(v => v.mesa_id == mesaId && v.partido_id == partido.id);
+                    
+                    if (votoExistente) {
+                        const { error } = await sb
+                            .from('votos')
+                            .update({ cantidad })
+                            .eq('id', votoExistente.id);
+                        
+                        if (error) throw error;
+                    } else {
+                        const { error } = await sb
+                            .from('votos')
+                            .insert([{ mesa_id: mesaId, partido_id: partido.id, cantidad }]);
+                        
+                        if (error) throw error;
+                    }
+                }
+                
+                mostrarMensaje('votarMessages', 'Votos registrados exitosamente');
+                await cargarVotos();
+            } catch (error) {
+                mostrarMensaje('votarMessages', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        async function mostrarResultados() {
+            try {
+                const sb = getSupabase();
+                const { data: votosData, error } = await sb
+                    .from('votos')
+                    .select('*, mesas(numero, zona_id, zonas(nombre)), partidos(nombre, color)')
+                    .gt('cantidad', 0);
+                
+                if (error) throw error;
+                
+                let totalVotos = 0;
+                const mesasEscrutadas = new Set();
+                const votosPorZona = {};
+                
+                votosData.forEach(voto => {
+                    totalVotos += voto.cantidad;
+                    mesasEscrutadas.add(voto.mesa_id);
+                    
+                    const zonaId = voto.mesas.zona_id;
+                    const zonaNombre = voto.mesas.zonas.nombre;
+                    
+                    if (!votosPorZona[zonaId]) {
+                        votosPorZona[zonaId] = {
+                            nombre: zonaNombre,
+                            partidos: {}
+                        };
+                    }
+                    
+                    if (!votosPorZona[zonaId].partidos[voto.partido_id]) {
+                        votosPorZona[zonaId].partidos[voto.partido_id] = {
+                            nombre: voto.partidos.nombre,
+                            color: voto.partidos.color,
+                            votos: 0
+                        };
+                    }
+                    
+                    votosPorZona[zonaId].partidos[voto.partido_id].votos += voto.cantidad;
+                });
+                
+                document.getElementById('totalVotos').textContent = totalVotos;
+                document.getElementById('totalMesas').textContent = mesasEscrutadas.size;
+                document.getElementById('totalPartidos').textContent = partidos.length;
+                
+                const detalle = document.getElementById('resultadosDetalle');
+                detalle.innerHTML = '';
+                
+                if (Object.keys(votosPorZona).length === 0) {
+                    detalle.innerHTML = '<p style="text-align:center; color:#999;">No hay votos registrados aún</p>';
+                    return;
+                }
+                
+                Object.values(votosPorZona).forEach(zona => {
+                    const div = document.createElement('div');
+                    div.className = 'resultado-item';
+                    
+                    let html = `<h4>${zona.nombre}</h4>`;
+                    
+                    Object.values(zona.partidos).forEach(partido => {
+                        html += `
+                            <div class="partido-resultado">
+                                <span style="color: ${partido.color}; font-weight: bold;">● ${partido.nombre}</span>
+                                <span><strong>${partido.votos}</strong> votos</span>
+                            </div>
+                        `;
+                    });
+                    
+                    div.innerHTML = html;
+                    detalle.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('resultadosDetalle').innerHTML = 
+                    '<div class="error">Error al cargar resultados: ' + error.message + '</div>';
+            }
+        }
+
+        async function exportarDatos() {
+            try {
+                const datos = {
+                    zonas,
+                    mesas,
+                    partidos,
+                    votos,
+                    fecha: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `votacion_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert('Datos exportados exitosamente');
+            } catch (error) {
+                alert('Error al exportar: ' + error.message);
+            }
+        }
+
+        async function sincronizarDatos() {
+            try {
+                await cargarTodosDatos();
+                alert('Datos sincronizados correctamente');
+            } catch (error) {
+                alert('Error al sincronizar: ' + error.message);
+            }
+        }
+
+        function openTab(tabName) {
+            const contents = document.querySelectorAll('.tab-content');
+            const tabs = document.querySelectorAll('.tab');
+            
+            contents.forEach(content => content.classList.remove('active'));
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'votar') {
+                actualizarSeccionVotos();
+            }
+            if (tabName === 'resultados') {
+                mostrarResultados();
+            }
+        }
+
+        document.getElementById('btnGuardarConfig').addEventListener('click', guardarConfiguracion);
+        document.getElementById('btnMostrarConfig').addEventListener('click', mostrarConfiguracion);
+        document.getElementById('btnExportar').addEventListener('click', exportarDatos);
+        document.getElementById('btnSincronizar').addEventListener('click', sincronizarDatos);
+        document.getElementById('btnAgregarZona').addEventListener('click', agregarZona);
+        document.getElementById('btnAgregarMesa').addEventListener('click', agregarMesa);
+        document.getElementById('btnAgregarPartido').addEventListener('click', agregarPartido);
+        document.getElementById('btnRegistrarVotos').addEventListener('click', registrarVotos);
+        document.getElementById('mesaVoto').addEventListener('change', actualizarSeccionVotos);
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                openTab(this.dataset.tab);
+            });
+        });
+
+        document.getElementById('nombreZona').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') agregarZona();
+        });
+
+        document.getElementById('numeroMesa').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') agregarMesa();
+        });
+
+        document.getElementById('nombrePartido').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') agregarPartido();
+        });
+
+        window.addEventListener('DOMContentLoaded', function() {
+            verificarConfiguracion();
+        });
+    </script>
+</body>
+</html
